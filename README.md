@@ -4,7 +4,7 @@ Este proyecto implementa un sistema de recomendación de películas utilizando b
 
 ---
 
-## 📋 Requisitos
+## Requisitos
 
 Antes de ejecutar la aplicación, asegúrate de tener instaladas las siguientes herramientas:
 
@@ -15,7 +15,7 @@ Antes de ejecutar la aplicación, asegúrate de tener instaladas las siguientes 
 
 ---
 
-## ⚙️ Pasos para la instalación y ejecución
+## Pasos para la instalación y ejecución
 
 ### 1. Descargar el modelo LLM
 
