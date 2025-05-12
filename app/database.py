@@ -28,6 +28,12 @@ class DatabaseManager:
         db = client['MRP']
         self.mongo_coll = db['peliculas']
 
+    def user_exists(self, username: str) -> bool:
+        """Devuelve True si existe un usuario con ese username en Neo4j."""
+        check_query = "MATCH (u:Usuario {username: $username}) RETURN u LIMIT 1"
+        result = self.connector.execute_query(check_query, {"username": username})
+        return bool(result)
+
     def get_peliculas_options(self):
         """Obtiene la lista de todas las películas disponibles en Neo4j."""
         query = "MATCH (p:Pelicula) RETURN DISTINCT p.titulo AS titulo ORDER BY titulo"
@@ -63,10 +69,8 @@ class DatabaseManager:
 
     def register_user(self, username, password, email):
         """Registra un nuevo usuario en Neo4j."""
-        check_query = "MATCH (u:Usuario {username: $username}) RETURN u"
-        result = self.connector.execute_query(check_query, {"username": username})
-        if result:
-            return False, "El nombre de usuario ya está en uso."
+        if self.user_exists(username):
+            return False, "El nombre de usuario ya está en uso.", None
         try:
             hashed_password = self.hash_password(password)
             user_uuid = str(uuid.uuid4())
@@ -103,7 +107,7 @@ class DatabaseManager:
                 auth_query, {"username": username, "password": hashed}
             )
             if not res:
-                return False, None, None, "Nombre de usuario o contraseña incorrectos."
+                return False, None, None, [], False, "Nombre de usuario o contraseña incorrectos."
             user = res[0]
 
             ratings_query = """
@@ -117,23 +121,21 @@ class DatabaseManager:
             has_preferences = len(ratings) > 0
             return True, user['id'], user['username'], ratings, has_preferences, "Inicio de sesión exitoso."
         except Exception as e:
-            return False, None, None, None, False, f"Error al iniciar sesión: {str(e)}"
+            return False, None, None, [], False, f"Error al iniciar sesión: {str(e)}"
 
     def save_movie_ratings(self, user_id, movie_ratings):
         """Guarda las valoraciones de películas del usuario en Neo4j."""
         try:
             for rating in movie_ratings:
-                película_query = """
+                pelicula_query = """
                     MATCH (p:Pelicula {titulo: $titulo})
                     RETURN p.id as id
                     """
-                película_params = {
-                    "titulo": rating['pelicula']
-                }
-                película_result = self.connector.execute_query(película_query, película_params)
+                pelicula_params = {"titulo": rating['pelicula']}
+                pelicula_result = self.connector.execute_query(pelicula_query, pelicula_params)
 
-                if película_result:
-                    película_id = película_result[0]['id']
+                if pelicula_result:
+                    pelicula_id = pelicula_result[0]['id']
 
                     rating_query = """
                         MATCH (u:Usuario {id: $user_id})
@@ -144,7 +146,7 @@ class DatabaseManager:
                         """
                     rating_params = {
                         "user_id": user_id,
-                        "pelicula_id": película_id,
+                        "pelicula_id": pelicula_id,
                         "puntuacion": rating['valoracion']
                     }
                     self.connector.execute_query(rating_query, rating_params)
